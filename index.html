@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Scouting - Predicción de Jugadores Élite</title>
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: linear-gradient(135deg, #1e3c72, #2a5298);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .container {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        padding: 32px;
+        width: 100%;
+        max-width: 480px;
+    }
+
+    h1 {
+        font-size: 22px;
+        color: #1e3c72;
+        margin-bottom: 4px;
+        text-align: center;
+    }
+
+    .subtitulo {
+        text-align: center;
+        color: #666;
+        font-size: 13px;
+        margin-bottom: 24px;
+    }
+
+    label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 6px;
+        margin-top: 16px;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+        border-color: #2a5298;
+    }
+
+    .hint {
+        font-size: 11px;
+        color: #999;
+        margin-top: 4px;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 24px;
+        padding: 12px;
+        background: #2a5298;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    button:hover {
+        background: #1e3c72;
+    }
+
+    button:disabled {
+        background: #aaa;
+        cursor: not-allowed;
+    }
+
+    #resultado {
+        margin-top: 24px;
+        display: none;
+    }
+
+    .resultado-card {
+        border-radius: 8px;
+        padding: 18px;
+        text-align: center;
+    }
+
+    .resultado-card.elite {
+        background: #e8f8f0;
+        border: 2px solid #27ae60;
+    }
+
+    .resultado-card.estandar {
+        background: #fef5e7;
+        border: 2px solid #e67e22;
+    }
+
+    .resultado-clase {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .resultado-clase.elite {
+        color: #27ae60;
+    }
+
+    .resultado-clase.estandar {
+        color: #e67e22;
+    }
+
+    .resultado-nombre {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 14px;
+    }
+
+    .barra-contenedor {
+        background: #e0e0e0;
+        border-radius: 20px;
+        height: 22px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .barra-relleno {
+        height: 100%;
+        border-radius: 20px;
+        transition: width 0.6s ease-in-out;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .barra-relleno.elite {
+        background: linear-gradient(90deg, #2ecc71, #27ae60);
+    }
+
+    .barra-relleno.estandar {
+        background: linear-gradient(90deg, #f39c12, #e67e22);
+    }
+
+    .barra-texto {
+        font-size: 12px;
+        font-weight: 700;
+        color: white;
+    }
+
+    .barra-label {
+        font-size: 11px;
+        color: #777;
+        margin-top: 6px;
+    }
+
+    #error {
+        display: none;
+        margin-top: 20px;
+        background: #fdecea;
+        border: 1px solid #e74c3c;
+        color: #c0392b;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 13px;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⚽ Sistema de Scouting</h1>
+    <p class="subtitulo">Predicción de jugadores élite con Random Forest</p>
+
+    <form id="form-prediccion">
+        <label for="jugador">Nombre del jugador</label>
+        <input type="text" id="jugador" placeholder="Ej: Candidato A" required>
+
+        <label for="posicion">Posición</label>
+        <select id="posicion" required>
+            <option value="">Selecciona una posición</option>
+            <option value="Goalkeeper">Goalkeeper</option>
+            <option value="Defender">Defender</option>
+            <option value="Midfield">Midfield</option>
+            <option value="Attack">Attack</option>
+        </select>
+
+        <label for="edad">Edad</label>
+        <input type="number" id="edad" min="14" max="45" placeholder="Ej: 24" required>
+
+        <label for="estatura">Estatura (cm)</label>
+        <input type="number" id="estatura" min="140" max="220" placeholder="Opcional: se imputará si se deja vacío">
+        <p class="hint">Si no la conoces, déjala en blanco: el modelo la estima con la mediana histórica según la posición.</p>
+
+        <button type="submit" id="btn-predecir">Predecir</button>
+    </form>
+
+    <div id="resultado"></div>
+    <div id="error"></div>
+</div>
+
+<script>
+    // --------------------------------------------------------------
+    // Configuración: URL base de la API (ajusta el puerto si cambia)
+    // --------------------------------------------------------------
+    const API_URL = "http://127.0.0.1:8000/predict";
+
+    const form = document.getElementById("form-prediccion");
+    const btn = document.getElementById("btn-predecir");
+    const divResultado = document.getElementById("resultado");
+    const divError = document.getElementById("error");
+
+    form.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+
+        // Ocultar resultados/errores previos mientras se procesa la nueva solicitud
+        divResultado.style.display = "none";
+        divError.style.display = "none";
+
+        // 1. Leer los valores del formulario
+        const jugador = document.getElementById("jugador").value.trim();
+        const posicion = document.getElementById("posicion").value;
+        const edad = parseInt(document.getElementById("edad").value, 10);
+        const estaturaRaw = document.getElementById("estatura").value;
+
+        // La estatura es opcional: si está vacía, se envía null
+        // para que la API aplique la misma imputación del entrenamiento
+        const estatura_cm = estaturaRaw === "" ? null : parseFloat(estaturaRaw);
+
+        const payload = {
+            jugador: jugador,
+            posicion: posicion,
+            estatura_cm: estatura_cm,
+            edad: edad
+        };
+
+        // 2. Deshabilitar el botón mientras llega la respuesta
+        btn.disabled = true;
+        btn.textContent = "Consultando modelo...";
+
+        try {
+            // 3. Enviar la petición POST a la API con el cuerpo en JSON
+            const respuesta = await fetch(API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!respuesta.ok) {
+                throw new Error("La API respondió con estado " + respuesta.status);
+            }
+
+            const datos = await respuesta.json();
+            mostrarResultado(datos);
+
+        } catch (err) {
+            mostrarError(err);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Predecir";
+        }
+    });
+
+    function mostrarResultado(datos) {
+        const esElite = datos.prediccion === "Élite";
+        const claseCSS = esElite ? "elite" : "estandar";
+        const probabilidad = datos.probabilidad_elite;
+
+        divResultado.innerHTML = `
+            <div class="resultado-card ${claseCSS}">
+                <div class="resultado-clase ${claseCSS}">
+                    ${esElite ? "🌟 ÉLITE" : "📋 ESTÁNDAR"}
+                </div>
+                <div class="resultado-nombre">${datos.jugador}</div>
+                <div class="barra-contenedor">
+                    <div class="barra-relleno ${claseCSS}" style="width: ${probabilidad}%;">
+                        <span class="barra-texto">${probabilidad}%</span>
+                    </div>
+                </div>
+                <div class="barra-label">Probabilidad estimada de ser jugador élite</div>
+            </div>
+        `;
+        divResultado.style.display = "block";
+    }
+
+    function mostrarError(err) {
+        divError.textContent = "No se pudo conectar con la API. Verifica que el servidor uvicorn esté corriendo (" +
+            API_URL + "). Detalle: " + err.message;
+        divError.style.display = "block";
+    }
+</script>
+
+</body>
+</html>
